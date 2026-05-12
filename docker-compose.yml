@@ -1,0 +1,69 @@
+services:
+  go-monitor-demo:
+    build:
+      context: .
+    container_name: go-monitor-demo
+    environment:
+      APP_PORT: "18080"
+      METRICS_PORT: "12112"
+    ports:
+      - "18080:18080"
+      - "12112:12112"
+    volumes:
+      - ./runtime-logs:/app/logs
+    networks:
+      - monitor-net
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitor-net
+
+  loki:
+    image: grafana/loki:3.5.1
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitor-net
+
+  fluent-bit:
+    image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
+    container_name: fluent-bit
+    command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./runtime-logs:/app/logs
+    depends_on:
+      - loki
+    networks:
+      - monitor-net
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitor-net
+
+networks:
+  monitor-net:
+    driver: bridge
