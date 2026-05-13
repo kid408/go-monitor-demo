@@ -1,0 +1,67 @@
+pipeline {
+  agent any
+
+  options {
+    skipDefaultCheckout(true)
+  }
+
+  environment {
+    HOST_APP_PORT = '28080'
+    HOST_METRICS_PORT = '22112'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Check Docker') {
+      steps {
+        sh '''
+          docker version
+          docker buildx version
+          docker buildx ls
+        '''
+      }
+    }
+
+    stage('Build Image') {
+      steps {
+        sh '''
+          docker buildx build -t go-monitor-demo:latest . --load
+        '''
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        sh '''
+          docker rm -f go-monitor-demo || true
+          mkdir -p ./runtime-logs
+          docker run -d \
+            --name go-monitor-demo \
+            --restart unless-stopped \
+            -e APP_PORT=18080 \
+            -e METRICS_PORT=12112 \
+            -p ${HOST_APP_PORT}:18080 \
+            -p ${HOST_METRICS_PORT}:12112 \
+            -v $(pwd)/runtime-logs:/app/logs \
+            go-monitor-demo:latest
+        '''
+      }
+    }
+
+    stage('Smoke Test') {
+      steps {
+        sh '''
+          sleep 5
+          curl -fsS http://127.0.0.1:${HOST_APP_PORT}/healthz
+          curl -fsS "http://127.0.0.1:${HOST_APP_PORT}/work?delay_ms=300"
+          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep go_demo_process_up
+        '''
+      }
+    }
+  }
+}
