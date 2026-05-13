@@ -69,7 +69,7 @@ func main() {
 
 	logPath := os.Getenv("APP_LOG_PATH")
 	if logPath == "" {
-		logPath = "/app/logs/app.log"
+		logPath = "/app/logs/go-monitor-demo.log"
 	}
 
 	logger, logFile, err := newLogger(logPath)

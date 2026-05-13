@@ -7,8 +7,8 @@ services:
       APP_PORT: "18080"
       METRICS_PORT: "12112"
     ports:
-      - "18080:18080"
-      - "12112:12112"
+      - "28080:18080"
+      - "22112:12112"
     volumes:
       - ./runtime-logs:/app/logs
     networks:

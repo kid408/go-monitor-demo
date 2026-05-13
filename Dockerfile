@@ -25,6 +25,6 @@ COPY --from=builder /out/go-monitor-demo /app/go-monitor-demo
 
 EXPOSE 18080 12112
 
-ENV APP_LOG_PATH=/app/logs/app.log
+ENV APP_LOG_PATH=/app/logs/go-monitor-demo.log
 
 CMD ["/app/go-monitor-demo"]

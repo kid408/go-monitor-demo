@@ -8,6 +8,7 @@ pipeline {
   environment {
     HOST_APP_PORT = '28080'
     HOST_METRICS_PORT = '22112'
+    HOST_LOG_DIR = '/opt/monitoring/fluent-bit/logs'
   }
 
   stages {
@@ -39,15 +40,16 @@ pipeline {
       steps {
         sh '''
           docker rm -f go-monitor-demo || true
-          mkdir -p ./runtime-logs
+          mkdir -p ${HOST_LOG_DIR}
           docker run -d \
             --name go-monitor-demo \
             --restart unless-stopped \
             -e APP_PORT=18080 \
             -e METRICS_PORT=12112 \
+            -e APP_LOG_PATH=/app/logs/go-monitor-demo.log \
             -p ${HOST_APP_PORT}:18080 \
             -p ${HOST_METRICS_PORT}:12112 \
-            -v $(pwd)/runtime-logs:/app/logs \
+            -v ${HOST_LOG_DIR}:/app/logs \
             go-monitor-demo:latest
         '''
       }

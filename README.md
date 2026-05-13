@@ -10,7 +10,7 @@
 - `GET /healthz`
 - `GET /work?delay_ms=800&status=500`
 - `GET /metrics`
-- 周期性写 JSON 日志到 `/app/logs/app.log`
+- 周期性写 JSON 日志到 `/app/logs/go-monitor-demo.log`
 - 提供 Prometheus 指标
 
 ## 端口说明
@@ -18,7 +18,11 @@
 - 业务接口：`18080`
 - metrics 接口：`12112`
 
-之前文档把 `8080/2112`、容器内端口、宿主机端口混在一起写了，这本身就容易把人带沟里。现在统一改成 `18080/12112`，本地运行、Docker 运行、Docker Compose、Jenkins 示例全部保持一致。
+之前文档把 `8080/2112`、容器内端口、宿主机端口混在一起写了，这本身就容易把人带沟里。
+
+- 容器内统一：`18080/12112`
+- 本地直跑统一：`18080/12112`
+- Docker / Compose / Jenkins 对外映射统一：`28080/22112`
 
 ## 本地直接运行
 
@@ -29,14 +33,14 @@ go mod tidy
 New-Item -ItemType Directory -Force runtime-logs | Out-Null
 $env:APP_PORT="18080"
 $env:METRICS_PORT="12112"
-$env:APP_LOG_PATH="./runtime-logs/app.log"
+$env:APP_LOG_PATH="./runtime-logs/go-monitor-demo.log"
 go run .
 ```
 
 你之前如果直接照着旧文档写下面这种命令，在 PowerShell 里就是错的：
 
 ```bash
-APP_PORT=18080 METRICS_PORT=12112 APP_LOG_PATH=./runtime-logs/app.log go run .
+APP_PORT=18080 METRICS_PORT=12112 APP_LOG_PATH=./runtime-logs/go-monitor-demo.log go run .
 ```
 
 这是 Bash 写法，不是 PowerShell 写法。
@@ -46,16 +50,16 @@ APP_PORT=18080 METRICS_PORT=12112 APP_LOG_PATH=./runtime-logs/app.log go run .
 ```bash
 go mod tidy
 mkdir -p ./runtime-logs
-APP_PORT=18080 METRICS_PORT=12112 APP_LOG_PATH=./runtime-logs/app.log go run .
+APP_PORT=18080 METRICS_PORT=12112 APP_LOG_PATH=./runtime-logs/go-monitor-demo.log go run .
 ```
 
 默认日志文件：
 
 ```text
-/app/logs/app.log
+/app/logs/go-monitor-demo.log
 ```
 
-如果你本机运行不想写到容器目录，就把日志写到当前目录下的 `runtime-logs/app.log`。
+如果你本机运行不想写到容器目录，就把日志写到当前目录下的 `runtime-logs/go-monitor-demo.log`。
 
 ## Docker 运行
 
@@ -68,8 +72,8 @@ docker run -d `
   --name go-monitor-demo `
   -e APP_PORT=18080 `
   -e METRICS_PORT=12112 `
-  -p 18080:18080 `
-  -p 12112:12112 `
+  -p 28080:18080 `
+  -p 22112:12112 `
   -v "${PWD}/runtime-logs:/app/logs" `
   go-monitor-demo:latest
 ```
@@ -82,8 +86,8 @@ docker run -d \
   --name go-monitor-demo \
   -e APP_PORT=18080 \
   -e METRICS_PORT=12112 \
-  -p 18080:18080 \
-  -p 12112:12112 \
+  -p 28080:18080 \
+  -p 22112:12112 \
   -v $(pwd)/runtime-logs:/app/logs \
   go-monitor-demo:latest
 ```
@@ -96,9 +100,9 @@ docker compose up -d --build
 
 访问：
 
-- `http://127.0.0.1:18080/healthz`
-- `http://127.0.0.1:18080/work?delay_ms=500`
-- `http://127.0.0.1:12112/metrics`
+- `http://127.0.0.1:28080/healthz`
+- `http://127.0.0.1:28080/work?delay_ms=500`
+- `http://127.0.0.1:22112/metrics`
 - `http://127.0.0.1:9090`
 - `http://127.0.0.1:3000`
 
