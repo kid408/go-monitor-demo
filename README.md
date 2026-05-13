@@ -157,6 +157,12 @@ histogram_quantile(0.95, sum by (job, le) (rate(go_demo_background_job_duration_
 - `go_demo_http_request_duration_seconds`：HTTP 请求耗时直方图
 - `go_demo_background_job_duration_seconds`：后台任务耗时直方图
 
+如果你怀疑 Jenkins 没部署到最新版本，先看容器日志里有没有这条启动日志：
+
+```text
+demo metrics loop started
+```
+
 ## 日志查询
 
 Grafana Explore 中查询：

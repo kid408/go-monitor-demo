@@ -61,7 +61,10 @@ pipeline {
           sleep 5
           curl -fsS http://127.0.0.1:${HOST_APP_PORT}/healthz
           curl -fsS "http://127.0.0.1:${HOST_APP_PORT}/work?delay_ms=300"
-          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep go_demo_process_up
+          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep '^go_demo_process_up'
+          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep '^go_demo_online_users'
+          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep '^go_demo_queue_depth'
+          curl -fsS http://127.0.0.1:${HOST_METRICS_PORT}/metrics | grep '^go_demo_background_jobs_total'
         '''
       }
     }

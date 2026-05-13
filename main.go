@@ -290,6 +290,8 @@ func (a *app) demoMetricsLoop() {
 	direction := 1
 	tick := 0
 
+	a.writeLog("info", "demo metrics loop started", "", "", "", 0)
+
 	for range ticker.C {
 		tick++
 
