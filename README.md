@@ -117,6 +117,45 @@ admin / admin
 - `go_demo_http_requests_total`
 - `go_demo_heartbeat_total`
 - `go_demo_process_up`
+- `go_demo_online_users`
+- `go_demo_queue_depth`
+- `go_demo_background_jobs_total`
+- `go_demo_http_request_duration_seconds`
+- `go_demo_background_job_duration_seconds`
+
+## 建议你直接看的 Prometheus 查询
+
+先看最直观的几条：
+
+```promql
+go_demo_online_users
+go_demo_queue_depth
+go_demo_process_up
+go_demo_heartbeat_total
+```
+
+再看请求和耗时：
+
+```promql
+sum(go_demo_http_requests_total)
+sum(rate(go_demo_http_requests_total[1m]))
+histogram_quantile(0.95, sum by (le) (rate(go_demo_http_request_duration_seconds_bucket[5m])))
+```
+
+再看模拟后台任务：
+
+```promql
+sum by (job, result) (increase(go_demo_background_jobs_total[5m]))
+histogram_quantile(0.95, sum by (job, le) (rate(go_demo_background_job_duration_seconds_bucket[5m])))
+```
+
+说明：
+
+- `go_demo_online_users`：每秒变化一次，`1 -> 100 -> 1` 来回波动
+- `go_demo_queue_depth`：两个队列深度，会跟着人数变化
+- `go_demo_background_jobs_total`：带 `job/result` 标签的计数器
+- `go_demo_http_request_duration_seconds`：HTTP 请求耗时直方图
+- `go_demo_background_job_duration_seconds`：后台任务耗时直方图
 
 ## 日志查询
 
@@ -124,4 +163,28 @@ Grafana Explore 中查询：
 
 ```text
 {job="go-monitor-demo"}
+```
+
+如果你是在命令行验证 Loki，先别直接打 `/loki/api/v1/query`。先查就绪、再查标签流、最后查时间范围内的日志：
+
+```bash
+curl -v http://127.0.0.1:3100/ready
+```
+
+```bash
+curl -G "http://127.0.0.1:3100/loki/api/v1/series" \
+  --data-urlencode 'match[]={job="go-monitor-demo"}' \
+  --data-urlencode "start=$(date -d '1 hour ago' +%s)000000000" \
+  --data-urlencode "end=$(date +%s)000000000" | jq .
+```
+
+```bash
+START_NS=$(date -d '1 hour ago' +%s)000000000
+END_NS=$(date +%s)000000000
+
+curl -G "http://127.0.0.1:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={job="go-monitor-demo"}' \
+  --data-urlencode "start=${START_NS}" \
+  --data-urlencode "end=${END_NS}" \
+  --data-urlencode 'limit=20' | jq .
 ```
