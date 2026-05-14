@@ -1,0 +1,41 @@
+ 你现在按下面这组命令重装，顺序别乱：
+
+  cd /home/work/docker-lab
+
+  docker compose --profile clickhouse down -v
+
+  docker rm -f docker-lab-clickhouse-init 2>/dev/null || true
+
+  docker volume rm \
+    docker-lab_clickhouse-1-data \
+    docker-lab_clickhouse-2-data \
+    docker-lab_keeper-1-data \
+    docker-lab_keeper-2-data \
+    docker-lab_keeper-3-data 2>/dev/null || true
+
+  docker compose --profile clickhouse up -d
+
+  docker compose logs -f clickhouse-init
+
+  如果修正生效，最后你应该看到类似：
+
+  [clickhouse-init] waiting for clickhouse-1
+  [clickhouse-init] waiting for clickhouse-2
+  [clickhouse-init] creating cluster schema
+  [clickhouse-init] done
+
+  然后用这几条验收：
+
+  docker compose exec clickhouse-1 clickhouse-client --user lab --password lab123 --query "SELECT hostName()"
+
+  docker compose exec clickhouse-1 clickhouse-client --user lab --password lab123 --query "SHOW DATABASES"
+
+  docker compose exec clickhouse-1 clickhouse-client --user lab --password lab123 --query "SHOW TABLES FROM app"
+
+  docker compose exec clickhouse-1 clickhouse-client --user lab --password lab123 --query "SELECT * FROM system.clusters
+  WHERE cluster='lab_cluster'"
+
+  如果你想更稳一点，再补一条跨节点认证验证：
+
+  docker compose exec clickhouse-2 clickhouse-client --user lab --password lab123 --host clickhouse-1 --query "SELECT 1"
+  docker compose exec clickhouse-1 clickhouse-client --user lab --password lab123 --host clickhouse-2 --query "SELECT 1"

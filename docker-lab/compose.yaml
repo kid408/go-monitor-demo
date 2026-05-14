@@ -1,0 +1,580 @@
+name: docker-lab
+
+services:
+  nginx:
+    image: ${NGINX_IMAGE}
+    profiles: ["nginx"]
+    container_name: docker-lab-nginx
+    ports:
+      - "${NGINX_HTTP_HOST_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - lab-net
+
+  kafka-1:
+    image: ${KAFKA_IMAGE}
+    profiles: ["kafka"]
+    hostname: kafka-1
+    container_name: docker-lab-kafka-1
+    ports:
+      - "${KAFKA_1_HOST_PORT}:29092"
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-1:9092,PLAINTEXT_HOST://localhost:${KAFKA_1_HOST_PORT}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_MIN_INSYNC_REPLICAS: "2"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+    networks:
+      - lab-net
+
+  kafka-2:
+    image: ${KAFKA_IMAGE}
+    profiles: ["kafka"]
+    hostname: kafka-2
+    container_name: docker-lab-kafka-2
+    ports:
+      - "${KAFKA_2_HOST_PORT}:39092"
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_NODE_ID: "2"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:39092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-2:9092,PLAINTEXT_HOST://localhost:${KAFKA_2_HOST_PORT}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_MIN_INSYNC_REPLICAS: "2"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+    networks:
+      - lab-net
+
+  kafka-3:
+    image: ${KAFKA_IMAGE}
+    profiles: ["kafka"]
+    hostname: kafka-3
+    container_name: docker-lab-kafka-3
+    ports:
+      - "${KAFKA_3_HOST_PORT}:49092"
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_NODE_ID: "3"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:49092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-3:9092,PLAINTEXT_HOST://localhost:${KAFKA_3_HOST_PORT}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+      KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+      KAFKA_MIN_INSYNC_REPLICAS: "2"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+    networks:
+      - lab-net
+
+  kafka-init:
+    image: ${KAFKA_IMAGE}
+    profiles: ["kafka"]
+    container_name: docker-lab-kafka-init
+    restart: "no"
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: "kafka-1:9092"
+      KAFKA_INIT_TOPIC: ${KAFKA_INIT_TOPIC}
+    volumes:
+      - ./scripts/kafka-init.sh:/scripts/kafka-init.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/kafka-init.sh"]
+    networks:
+      - lab-net
+
+  redis-1:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-1
+    container_name: docker-lab-redis-1
+    command: ["sh", "-ec", "exec redis-server --port 7000 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-1-data:/data
+    networks:
+      - lab-net
+
+  redis-2:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-2
+    container_name: docker-lab-redis-2
+    command: ["sh", "-ec", "exec redis-server --port 7001 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-2-data:/data
+    networks:
+      - lab-net
+
+  redis-3:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-3
+    container_name: docker-lab-redis-3
+    command: ["sh", "-ec", "exec redis-server --port 7002 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-3-data:/data
+    networks:
+      - lab-net
+
+  redis-4:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-4
+    container_name: docker-lab-redis-4
+    command: ["sh", "-ec", "exec redis-server --port 7003 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-4-data:/data
+    networks:
+      - lab-net
+
+  redis-5:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-5
+    container_name: docker-lab-redis-5
+    command: ["sh", "-ec", "exec redis-server --port 7004 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-5-data:/data
+    networks:
+      - lab-net
+
+  redis-6:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    hostname: redis-6
+    container_name: docker-lab-redis-6
+    command: ["sh", "-ec", "exec redis-server --port 7005 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
+    volumes:
+      - redis-6-data:/data
+    networks:
+      - lab-net
+
+  redis-init:
+    image: ${REDIS_IMAGE}
+    profiles: ["redis"]
+    container_name: docker-lab-redis-init
+    restart: "no"
+    depends_on:
+      - redis-1
+      - redis-2
+      - redis-3
+      - redis-4
+      - redis-5
+      - redis-6
+    volumes:
+      - ./scripts/redis-init.sh:/scripts/redis-init.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/redis-init.sh"]
+    networks:
+      - lab-net
+
+  mongo-1:
+    image: ${MONGO_IMAGE}
+    profiles: ["mongo"]
+    hostname: mongo-1
+    container_name: docker-lab-mongo-1
+    command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo-1-data:/data/db
+    networks:
+      - lab-net
+
+  mongo-2:
+    image: ${MONGO_IMAGE}
+    profiles: ["mongo"]
+    hostname: mongo-2
+    container_name: docker-lab-mongo-2
+    command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo-2-data:/data/db
+    networks:
+      - lab-net
+
+  mongo-3:
+    image: ${MONGO_IMAGE}
+    profiles: ["mongo"]
+    hostname: mongo-3
+    container_name: docker-lab-mongo-3
+    command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo-3-data:/data/db
+    networks:
+      - lab-net
+
+  mongo-init:
+    image: ${MONGO_IMAGE}
+    profiles: ["mongo"]
+    container_name: docker-lab-mongo-init
+    restart: "no"
+    depends_on:
+      - mongo-1
+      - mongo-2
+      - mongo-3
+    environment:
+      MONGO_REPLICA_SET: ${MONGO_REPLICA_SET}
+    volumes:
+      - ./scripts/mongo-init.sh:/scripts/mongo-init.sh:ro
+      - ./scripts/mongo-init.js:/scripts/mongo-init.js:ro
+    entrypoint: ["/bin/sh", "/scripts/mongo-init.sh"]
+    networks:
+      - lab-net
+
+  minio:
+    image: ${MINIO_IMAGE}
+    profiles: ["minio"]
+    hostname: minio
+    container_name: docker-lab-minio
+    command: ["server", "/data1", "/data2", "/data3", "/data4", "--address", ":9000", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_HOST_PORT}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT}:9001"
+    volumes:
+      - minio-1-data:/data1
+      - minio-2-data:/data2
+      - minio-3-data:/data3
+      - minio-4-data:/data4
+    networks:
+      - lab-net
+
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["minio"]
+    container_name: docker-lab-minio-init
+    restart: "no"
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    volumes:
+      - ./scripts/minio-init.sh:/scripts/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/minio-init.sh"]
+    networks:
+      - lab-net
+
+  keeper-1:
+    image: ${CLICKHOUSE_KEEPER_IMAGE}
+    profiles: ["clickhouse"]
+    hostname: keeper-1
+    container_name: docker-lab-keeper-1
+    command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
+    volumes:
+      - ./clickhouse/keeper/keeper-1.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper-1-data:/var/lib/clickhouse-keeper
+    networks:
+      - lab-net
+
+  keeper-2:
+    image: ${CLICKHOUSE_KEEPER_IMAGE}
+    profiles: ["clickhouse"]
+    hostname: keeper-2
+    container_name: docker-lab-keeper-2
+    command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
+    volumes:
+      - ./clickhouse/keeper/keeper-2.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper-2-data:/var/lib/clickhouse-keeper
+    networks:
+      - lab-net
+
+  keeper-3:
+    image: ${CLICKHOUSE_KEEPER_IMAGE}
+    profiles: ["clickhouse"]
+    hostname: keeper-3
+    container_name: docker-lab-keeper-3
+    command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
+    volumes:
+      - ./clickhouse/keeper/keeper-3.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper-3-data:/var/lib/clickhouse-keeper
+    networks:
+      - lab-net
+
+  clickhouse-1:
+    image: ${CLICKHOUSE_SERVER_IMAGE}
+    profiles: ["clickhouse"]
+    hostname: clickhouse-1
+    container_name: docker-lab-clickhouse-1
+    depends_on:
+      - keeper-1
+      - keeper-2
+      - keeper-3
+    ports:
+      - "${CLICKHOUSE_HTTP_HOST_PORT}:8123"
+      - "${CLICKHOUSE_TCP_HOST_PORT}:9000"
+    volumes:
+      - ./clickhouse/server/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/server/macros-1.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./clickhouse/server/users.xml:/etc/clickhouse-server/users.d/lab-user.xml:ro
+      - clickhouse-1-data:/var/lib/clickhouse
+    networks:
+      - lab-net
+
+  clickhouse-2:
+    image: ${CLICKHOUSE_SERVER_IMAGE}
+    profiles: ["clickhouse"]
+    hostname: clickhouse-2
+    container_name: docker-lab-clickhouse-2
+    depends_on:
+      - keeper-1
+      - keeper-2
+      - keeper-3
+    volumes:
+      - ./clickhouse/server/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/server/macros-2.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./clickhouse/server/users.xml:/etc/clickhouse-server/users.d/lab-user.xml:ro
+      - clickhouse-2-data:/var/lib/clickhouse
+    networks:
+      - lab-net
+
+  clickhouse-init:
+    image: ${CLICKHOUSE_SERVER_IMAGE}
+    profiles: ["clickhouse"]
+    container_name: docker-lab-clickhouse-init
+    restart: "no"
+    depends_on:
+      - clickhouse-1
+      - clickhouse-2
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE}
+      CLICKHOUSE_TABLE: ${CLICKHOUSE_TABLE}
+    volumes:
+      - ./scripts/clickhouse-init.sh:/scripts/clickhouse-init.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/clickhouse-init.sh"]
+    networks:
+      - lab-net
+
+  nginx-gateway:
+    image: ${NGINX_IMAGE}
+    profiles: ["demo"]
+    container_name: docker-lab-nginx-gateway
+    ports:
+      - "18088:80"
+    volumes:
+      - ./nginx/nginx-grpc.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway-1
+      - gateway-2
+    networks:
+      - lab-net
+
+  gateway-1:
+    build:
+      context: ${APP_SOURCE_ROOT}/go-gateway-demo
+    image: go-gateway-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-gateway-1
+    environment:
+      SERVICE_NAME: gateway
+      INSTANCE_ID: gateway-1
+      APP_PORT: "18080"
+      GRPC_PORT: "19080"
+      METRICS_PORT: "12112"
+      APP_LOG_PATH: /app/logs/go-gateway-demo.log
+      TARGET_SERVICE_NAME: worker
+      STATIC_WORKER_ADDRS: worker-1:19081,worker-2:19081
+      KAFKA_BROKERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_TOPIC: ${KAFKA_INIT_TOPIC}
+    depends_on:
+      - kafka-1
+      - worker-1
+      - worker-2
+    networks:
+      - lab-net
+
+  gateway-2:
+    build:
+      context: ${APP_SOURCE_ROOT}/go-gateway-demo
+    image: go-gateway-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-gateway-2
+    environment:
+      SERVICE_NAME: gateway
+      INSTANCE_ID: gateway-2
+      APP_PORT: "18080"
+      GRPC_PORT: "19080"
+      METRICS_PORT: "12112"
+      APP_LOG_PATH: /app/logs/go-gateway-demo.log
+      TARGET_SERVICE_NAME: worker
+      STATIC_WORKER_ADDRS: worker-1:19081,worker-2:19081
+      KAFKA_BROKERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_TOPIC: ${KAFKA_INIT_TOPIC}
+    depends_on:
+      - kafka-1
+      - worker-1
+      - worker-2
+    networks:
+      - lab-net
+
+  worker-1:
+    build:
+      context: ${APP_SOURCE_ROOT}/go-worker-demo
+    image: go-worker-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-worker-1
+    environment:
+      SERVICE_NAME: worker
+      INSTANCE_ID: worker-1
+      APP_PORT: "18081"
+      GRPC_PORT: "19081"
+      METRICS_PORT: "12113"
+      APP_LOG_PATH: /app/logs/go-worker-demo.log
+      TARGET_SERVICE_NAME: gateway
+      STATIC_GATEWAY_ADDRS: gateway-1:19080,gateway-2:19080
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_USE_SSL: "false"
+    depends_on:
+      - minio
+    networks:
+      - lab-net
+
+  worker-2:
+    build:
+      context: ${APP_SOURCE_ROOT}/go-worker-demo
+    image: go-worker-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-worker-2
+    environment:
+      SERVICE_NAME: worker
+      INSTANCE_ID: worker-2
+      APP_PORT: "18081"
+      GRPC_PORT: "19081"
+      METRICS_PORT: "12113"
+      APP_LOG_PATH: /app/logs/go-worker-demo.log
+      TARGET_SERVICE_NAME: gateway
+      STATIC_GATEWAY_ADDRS: gateway-1:19080,gateway-2:19080
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_USE_SSL: "false"
+    depends_on:
+      - minio
+    networks:
+      - lab-net
+
+  client-demo:
+    build:
+      context: ${APP_SOURCE_ROOT}/client-demo
+    image: client-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-client-demo
+    environment:
+      SERVICE_NAME: client-demo
+      INSTANCE_ID: client-demo
+      APP_PORT: "18082"
+      METRICS_PORT: "12114"
+      APP_LOG_PATH: /app/logs/client-demo.log
+      GATEWAY_ADDR: nginx-gateway:80
+      VIRTUAL_CLIENTS: "5"
+      HEARTBEAT_INTERVAL_MS: "2000"
+      SESSION_GAP_MS: "3000"
+      HEARTBEAT_MIN: "1"
+      HEARTBEAT_MAX: "3"
+    depends_on:
+      - nginx-gateway
+    networks:
+      - lab-net
+
+  event-consumer-demo:
+    build:
+      context: ${APP_SOURCE_ROOT}/event-consumer-demo
+    image: event-consumer-demo:dev
+    profiles: ["demo"]
+    container_name: docker-lab-event-consumer-demo
+    environment:
+      SERVICE_NAME: event-consumer-demo
+      INSTANCE_ID: event-consumer-demo
+      APP_PORT: "18083"
+      METRICS_PORT: "12115"
+      APP_LOG_PATH: /app/logs/event-consumer-demo.log
+      KAFKA_BROKERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_TOPIC: ${KAFKA_INIT_TOPIC}
+      KAFKA_GROUP_ID: event-consumer-demo
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_USE_SSL: "false"
+      CLICKHOUSE_ENDPOINT: http://clickhouse-1:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE}
+      CLICKHOUSE_TABLE: ${CLICKHOUSE_TABLE}
+    depends_on:
+      - kafka-1
+      - minio
+      - clickhouse-1
+    networks:
+      - lab-net
+
+networks:
+  lab-net:
+    name: docker-lab-net
+    driver: bridge
+
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+  redis-1-data:
+  redis-2-data:
+  redis-3-data:
+  redis-4-data:
+  redis-5-data:
+  redis-6-data:
+  mongo-1-data:
+  mongo-2-data:
+  mongo-3-data:
+  minio-1-data:
+  minio-2-data:
+  minio-3-data:
+  minio-4-data:
+  keeper-1-data:
+  keeper-2-data:
+  keeper-3-data:
+  clickhouse-1-data:
+  clickhouse-2-data:
