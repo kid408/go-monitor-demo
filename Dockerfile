@@ -1,11 +1,11 @@
-FROM golang:1.23.3 AS builder
+FROM docker.m.daocloud.io/golang:1.23.3 AS builder
 
 WORKDIR /src
 
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.org
 
-ENV GOPROXY=${GOPROXY}
+ENV GOPROXY=https://goproxy.cn,direct
 ENV GOSUMDB=${GOSUMDB}
 
 COPY go.mod ./
@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/go-monitor-demo .
 
-FROM debian:bookworm-slim
+FROM docker.m.daocloud.io/debian:bookworm-slim
 
 WORKDIR /app
 

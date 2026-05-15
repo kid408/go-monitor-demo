@@ -15,7 +15,7 @@ services:
       - monitor-net
 
   prometheus:
-    image: prom/prometheus:v3.4.0
+    image: docker.m.daocloud.io/prom/prometheus:v3.4.0
     container_name: prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -28,7 +28,7 @@ services:
       - monitor-net
 
   loki:
-    image: grafana/loki:3.5.1
+    image: docker.m.daocloud.io/grafana/loki:3.5.1
     container_name: loki
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
@@ -39,7 +39,7 @@ services:
       - monitor-net
 
   fluent-bit:
-    image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
+    image: docker.m.daocloud.io/fluent/fluent-bit:3.0.7
     container_name: fluent-bit
     command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
     volumes:
@@ -51,7 +51,7 @@ services:
       - monitor-net
 
   grafana:
-    image: grafana/grafana:11.6.0
+    image: docker.m.daocloud.io/grafana/grafana:11.6.0
     container_name: grafana
     ports:
       - "3000:3000"

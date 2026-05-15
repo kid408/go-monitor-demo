@@ -12,11 +12,19 @@ services:
     networks:
       - lab-net
 
+  # ==========================================
+  # Kafka Cluster & Init
+  # ==========================================
   kafka-1:
     image: ${KAFKA_IMAGE}
     profiles: ["kafka"]
     hostname: kafka-1
     container_name: docker-lab-kafka-1
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "${KAFKA_1_HOST_PORT}:29092"
     environment:
@@ -47,9 +55,15 @@ services:
     profiles: ["kafka"]
     hostname: kafka-2
     container_name: docker-lab-kafka-2
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "${KAFKA_2_HOST_PORT}:39092"
     environment:
+      # ... (保持原有环境变量不变)
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
       KAFKA_NODE_ID: "2"
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -77,9 +91,15 @@ services:
     profiles: ["kafka"]
     hostname: kafka-3
     container_name: docker-lab-kafka-3
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "${KAFKA_3_HOST_PORT}:49092"
     environment:
+      # ... (保持原有环境变量不变)
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
       KAFKA_NODE_ID: "3"
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -108,9 +128,12 @@ services:
     container_name: docker-lab-kafka-init
     restart: "no"
     depends_on:
-      - kafka-1
-      - kafka-2
-      - kafka-3
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVER: "kafka-1:9092"
       KAFKA_INIT_TOPIC: ${KAFKA_INIT_TOPIC}
@@ -120,11 +143,19 @@ services:
     networks:
       - lab-net
 
+  # ==========================================
+  # Redis Cluster & Init
+  # ==========================================
   redis-1:
     image: ${REDIS_IMAGE}
     profiles: ["redis"]
     hostname: redis-1
     container_name: docker-lab-redis-1
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7000", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7000 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-1-data:/data
@@ -136,6 +167,11 @@ services:
     profiles: ["redis"]
     hostname: redis-2
     container_name: docker-lab-redis-2
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7001", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7001 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-2-data:/data
@@ -147,6 +183,11 @@ services:
     profiles: ["redis"]
     hostname: redis-3
     container_name: docker-lab-redis-3
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7002", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7002 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-3-data:/data
@@ -158,6 +199,11 @@ services:
     profiles: ["redis"]
     hostname: redis-4
     container_name: docker-lab-redis-4
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7003", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7003 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-4-data:/data
@@ -169,6 +215,11 @@ services:
     profiles: ["redis"]
     hostname: redis-5
     container_name: docker-lab-redis-5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7004", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7004 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-5-data:/data
@@ -180,6 +231,11 @@ services:
     profiles: ["redis"]
     hostname: redis-6
     container_name: docker-lab-redis-6
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7005", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-ec", "exec redis-server --port 7005 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --bind 0.0.0.0 --protected-mode no --dir /data"]
     volumes:
       - redis-6-data:/data
@@ -192,23 +248,37 @@ services:
     container_name: docker-lab-redis-init
     restart: "no"
     depends_on:
-      - redis-1
-      - redis-2
-      - redis-3
-      - redis-4
-      - redis-5
-      - redis-6
+      redis-1:
+        condition: service_healthy
+      redis-2:
+        condition: service_healthy
+      redis-3:
+        condition: service_healthy
+      redis-4:
+        condition: service_healthy
+      redis-5:
+        condition: service_healthy
+      redis-6:
+        condition: service_healthy
     volumes:
       - ./scripts/redis-init.sh:/scripts/redis-init.sh:ro
     entrypoint: ["/bin/sh", "/scripts/redis-init.sh"]
     networks:
       - lab-net
 
+  # ==========================================
+  # MongoDB Cluster & Init
+  # ==========================================
   mongo-1:
     image: ${MONGO_IMAGE}
     profiles: ["mongo"]
     hostname: mongo-1
     container_name: docker-lab-mongo-1
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
     volumes:
       - mongo-1-data:/data/db
@@ -220,6 +290,11 @@ services:
     profiles: ["mongo"]
     hostname: mongo-2
     container_name: docker-lab-mongo-2
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
     volumes:
       - mongo-2-data:/data/db
@@ -231,6 +306,11 @@ services:
     profiles: ["mongo"]
     hostname: mongo-3
     container_name: docker-lab-mongo-3
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["mongod", "--replSet", "${MONGO_REPLICA_SET}", "--bind_ip_all", "--port", "27017"]
     volumes:
       - mongo-3-data:/data/db
@@ -243,9 +323,12 @@ services:
     container_name: docker-lab-mongo-init
     restart: "no"
     depends_on:
-      - mongo-1
-      - mongo-2
-      - mongo-3
+      mongo-1:
+        condition: service_healthy
+      mongo-2:
+        condition: service_healthy
+      mongo-3:
+        condition: service_healthy
     environment:
       MONGO_REPLICA_SET: ${MONGO_REPLICA_SET}
     volumes:
@@ -255,11 +338,19 @@ services:
     networks:
       - lab-net
 
+  # ==========================================
+  # MinIO & Init
+  # ==========================================
   minio:
     image: ${MINIO_IMAGE}
     profiles: ["minio"]
     hostname: minio
     container_name: docker-lab-minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["server", "/data1", "/data2", "/data3", "/data4", "--address", ":9000", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -281,7 +372,8 @@ services:
     container_name: docker-lab-minio-init
     restart: "no"
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -292,11 +384,19 @@ services:
     networks:
       - lab-net
 
+  # ==========================================
+  # ClickHouse Cluster & Init
+  # ==========================================
   keeper-1:
     image: ${CLICKHOUSE_KEEPER_IMAGE}
     profiles: ["clickhouse"]
     hostname: keeper-1
     container_name: docker-lab-keeper-1
+    healthcheck:
+      test: ["CMD", "bin/sh", "-c", "echo ruok | nc localhost 9181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
     volumes:
       - ./clickhouse/keeper/keeper-1.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
@@ -309,6 +409,11 @@ services:
     profiles: ["clickhouse"]
     hostname: keeper-2
     container_name: docker-lab-keeper-2
+    healthcheck:
+      test: ["CMD", "bin/sh", "-c", "echo ruok | nc localhost 9181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
     volumes:
       - ./clickhouse/keeper/keeper-2.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
@@ -321,6 +426,11 @@ services:
     profiles: ["clickhouse"]
     hostname: keeper-3
     container_name: docker-lab-keeper-3
+    healthcheck:
+      test: ["CMD", "bin/sh", "-c", "echo ruok | nc localhost 9181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["clickhouse-keeper", "--config-file=/etc/clickhouse-keeper/keeper_config.xml"]
     volumes:
       - ./clickhouse/keeper/keeper-3.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
@@ -334,9 +444,17 @@ services:
     hostname: clickhouse-1
     container_name: docker-lab-clickhouse-1
     depends_on:
-      - keeper-1
-      - keeper-2
-      - keeper-3
+      keeper-1:
+        condition: service_healthy
+      keeper-2:
+        condition: service_healthy
+      keeper-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping", "||", "exit", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
       - "${CLICKHOUSE_HTTP_HOST_PORT}:8123"
       - "${CLICKHOUSE_TCP_HOST_PORT}:9000"
@@ -354,9 +472,17 @@ services:
     hostname: clickhouse-2
     container_name: docker-lab-clickhouse-2
     depends_on:
-      - keeper-1
-      - keeper-2
-      - keeper-3
+      keeper-1:
+        condition: service_healthy
+      keeper-2:
+        condition: service_healthy
+      keeper-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8123/ping", "||", "exit", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
       - ./clickhouse/server/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
       - ./clickhouse/server/macros-2.xml:/etc/clickhouse-server/config.d/macros.xml:ro
@@ -371,8 +497,10 @@ services:
     container_name: docker-lab-clickhouse-init
     restart: "no"
     depends_on:
-      - clickhouse-1
-      - clickhouse-2
+      clickhouse-1:
+        condition: service_healthy
+      clickhouse-2:
+        condition: service_healthy
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
@@ -384,6 +512,9 @@ services:
     networks:
       - lab-net
 
+  # ==========================================
+  # Business Apps (Gateway, Worker, Clients)
+  # ==========================================
   nginx-gateway:
     image: ${NGINX_IMAGE}
     profiles: ["demo"]
